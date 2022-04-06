@@ -144,6 +144,11 @@ func main() {
 			Usage:  "docker registry mirrors",
 			EnvVar: "PLUGIN_REGISTRY_MIRRORS",
 		},
+		cli.StringSliceFlag{
+			Name:   "pull-registries",
+			Usage:  "List of registries to use the pull creds for",
+			EnvVar: "PLUGIN_PULL_REGISTRIES",
+		},
 		cli.StringFlag{
 			Name:   "access-key",
 			Usage:  "ECR access key",
@@ -214,6 +219,7 @@ func main() {
 func run(c *cli.Context) error {
 	repo := c.String("repo")
 	registry := c.String("registry")
+	pullRegistries := c.StringSlice("pull-registries")
 	region := c.String("region")
 	noPush := c.Bool("no-push")
 
@@ -223,6 +229,7 @@ func run(c *cli.Context) error {
 		c.String("access-key"),
 		c.String("secret-key"),
 		registry,
+		pullRegistries,
 		noPush,
 	)
 	if err != nil {
@@ -300,7 +307,7 @@ func run(c *cli.Context) error {
 	return plugin.Exec()
 }
 
-func createDockerConfig(dockerUsername, dockerPassword, accessKey, secretKey, registry string, noPush bool) (*docker.Config, error) {
+func createDockerConfig(dockerUsername, dockerPassword, accessKey, secretKey, registry string, pullRegistries []string, noPush bool) (*docker.Config, error) {
 	dockerConfig := docker.NewConfig()
 
 	if dockerUsername != "" {
@@ -328,6 +335,9 @@ func createDockerConfig(dockerUsername, dockerPassword, accessKey, secretKey, re
 
 		dockerConfig.SetCredHelper(ecrPublicDomain, "ecr-login")
 		dockerConfig.SetCredHelper(registry, "ecr-login")
+		for _, reg := range pullRegistries {
+			dockerConfig.SetCredHelper(reg, "ecr-login")
+		}
 	}
 
 	return dockerConfig, nil
